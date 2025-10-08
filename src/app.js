@@ -1,14 +1,16 @@
 const express = require('express');
+const {adminAuth} = require('./middlewares/auth');
 
 const app = express();
 
-app.get("/user/:userId/:name/:password",(req,res) => {
-    console.log(req.params)
-    res.send({firstName: "Mohit",lastname: "Singh"});
-});
+app.use("/admin",adminAuth);
 
-app.get("/test",(req,res) => {
-    res.send("Testing is done and dusted!");
+app.get("/admin/getAllData",(req,res)=>{
+    res.send("All Data for admin view");
+})
+
+app.get("/user",(req,res)=>{
+    res.send("user data");
 })
 
 app.listen(3000,() => {
