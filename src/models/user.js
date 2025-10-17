@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const validator = require('validator');
 
 const userSchema = new mongoose.Schema({
     firstName:{
@@ -17,12 +18,22 @@ const userSchema = new mongoose.Schema({
         lowecase:true,
         trim : true, //trim extra white spaces
         required : true,
-        unique : true
+        unique : true,
+        validate(value){
+            if(!validator.isEmail(value)){
+                throw new Error("Invalid Email ID");
+            }
+        }
     },
     password:{
         type : String,
         required : true,
-        minlength : [6,"Password must be at least 6 characters long"]
+        minlength : [6,"Password must be at least 6 characters long"],
+        validate(value){
+            if(!validator.isStrongPassword(value)){
+                throw new Error("Password is not Strong enough");
+            }
+        }
     },
     age:{
         type : Number,
@@ -41,7 +52,12 @@ const userSchema = new mongoose.Schema({
     photoUrl :{
         type :String,
         default : "https://cdn.vectorstock.com/i/500p/46/76/gray-male-head-placeholder-vector-23804676.jpg",
-        maxlength : [250,"Photo URL cannot be more than 250 characters"]
+        maxlength : [250,"Photo URL cannot be more than 250 characters"],
+        validate(value){
+            if(!validator.isURL(value)){
+                throw new Error("Invalid URL");
+            }
+        },
     },
     about :{
         type : String,
