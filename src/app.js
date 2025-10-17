@@ -55,6 +55,35 @@ app.get("/feed", async (req, res) => {
   }
 });
 
+// Delete user by id - DELETE /user
+app.delete("/user",async(req,res) => {
+  try {
+    const userId=req.body.userId;
+    await User.findByIdAndDelete(userId);
+    return res.status(200).json({message:"User deleted successfully"});
+    
+  } catch ( error) {
+    console.log("Error message",error);
+    return res.status(500).json({message:"Internal Server Error"});
+    
+  }
+})
+
+// Update DATA OF USER PATCH/user
+app.patch("/user",async(req,res) => {
+  try {
+    const userId =req.body.userId;
+    const data =req.body;
+    await User.findByIdAndUpdate(userId,data);
+    return res.status(200).json({message:"User data updated successfully"});
+    
+  } catch (error) {
+    console.log("Error message",error);
+    return res.status(500).json({message:"Internal Server Error"});
+    
+  }
+})
+
 connectDB()
   .then(() => {
     console.log("Database connected successfully");
