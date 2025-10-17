@@ -70,11 +70,19 @@ app.delete("/user",async(req,res) => {
 })
 
 // Update DATA OF USER PATCH/user
-app.patch("/user",async(req,res) => {
+app.patch("/user/:userId",async(req,res) => {
   try {
-    const userId =req.body.userId;
+    const userId =req.params.userId;
     const data =req.body;
-    await User.findByIdAndUpdate(userId,data);
+
+    // Validation for allowed updates
+    const UPDATES_ALLOWED = ["firstName","lastName","photUrl","about","skills"];
+    const isAlloedToUpdate = Object.keys(keys).every((key) => UPDATES_ALLOWED.includes(key));
+    if(!isAlloedToUpdate){
+      return res.status(400).json({message:"Invalid updates!"});
+    }
+
+    await User.findByIdAndUpdate(userId,data,runValidators=true);
     return res.status(200).json({message:"User data updated successfully"});
     
   } catch (error) {
