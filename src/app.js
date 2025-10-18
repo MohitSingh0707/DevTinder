@@ -2,13 +2,14 @@ const express = require("express");
 const connectDB = require("./config/database");
 const { default: mongoose } = require("mongoose");
 const User = require("./models/user");
+const bcrypt = require("bcrypt");
 
 const app = express();
 app.use(express.json());
 
 // API endpoint for user registration
 
-// Signup Route
+// Signup Route --> POST
 app.post("/signup", async (req, res) => {
   try {
     // step-1 ==> Get the input fields from the request body
@@ -25,12 +26,17 @@ app.post("/signup", async (req, res) => {
       return res.status(400).json({ message: " User Already Exists" });
     }
 
+    // step-3.1 ==> Hash the password with bcrypt
+    const hashedPassword = await bcrypt.hash(password,10);
+    console.log(hashedPassword);
+
+
     // step-4 ==> Create a new user
     const user = new User({
       firstName,
       lastName,
       emailId,
-      password,
+      password : hashedPassword,
       age,
     });
 
@@ -40,9 +46,41 @@ app.post("/signup", async (req, res) => {
     return res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
     console.error("Error during user registration", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    return res.status(500).json({ message: "Error while creating user" });
   }
 });
+
+// Login Route  --> POST
+app.post("/login",async(req,res) => {
+  try {
+    const {emailId,password} = req.body;
+
+    // step-1 ==> Validate the input fields
+    if(!emailId || !password){
+      return res.status(400).json({message : "All fieds are required"});
+    }
+
+    // step-2 ==> check if user exists
+    const user =await User.findOne({emailId});
+    if(!user){
+      return res.status(400).json({message:"Invalid Credentials"});
+    }
+
+    // step-3 ==> Compare the password
+    const isPasswordValid = await bcrypt.compare(password,user.password);
+    if(!isPasswordValid){
+      return res.status(400).json({message:"Invalid Credentials"});
+    }
+
+    //step-4 ==> return success response
+    return res.status(200).json({message:"User logged in successfully"});
+    
+  } catch (error) {
+    console.error("Error during user login", error);
+    return res.status(500).json({ message: "There is Problem in login" });
+    
+  }
+})
 
 // Feed up Route - GET/feed - get all usrs from the database
 app.get("/feed", async (req, res) => {
