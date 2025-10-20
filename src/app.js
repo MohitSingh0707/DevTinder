@@ -3,9 +3,13 @@ const connectDB = require("./config/database");
 const { default: mongoose } = require("mongoose");
 const User = require("./models/user");
 const bcrypt = require("bcrypt");
+const cookieparser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
+const { userAuth } = require("./middlewares/auth");
 
 const app = express();
 app.use(express.json());
+app.use(cookieparser());
 
 // API endpoint for user registration
 
@@ -27,16 +31,15 @@ app.post("/signup", async (req, res) => {
     }
 
     // step-3.1 ==> Hash the password with bcrypt
-    const hashedPassword = await bcrypt.hash(password,10);
+    const hashedPassword = await bcrypt.hash(password, 10);
     console.log(hashedPassword);
-
 
     // step-4 ==> Create a new user
     const user = new User({
       firstName,
       lastName,
       emailId,
-      password : hashedPassword,
+      password: hashedPassword,
       age,
     });
 
@@ -51,85 +54,70 @@ app.post("/signup", async (req, res) => {
 });
 
 // Login Route  --> POST
-app.post("/login",async(req,res) => {
+app.post("/login", async (req, res) => {
   try {
-    const {emailId,password} = req.body;
+    const { emailId, password } = req.body;
 
     // step-1 ==> Validate the input fields
-    if(!emailId || !password){
-      return res.status(400).json({message : "All fieds are required"});
+    if (!emailId || !password) {
+      return res.status(400).json({ message: "All fieds are required" });
     }
 
     // step-2 ==> check if user exists
-    const user =await User.findOne({emailId});
-    if(!user){
-      return res.status(400).json({message:"Invalid Credentials"});
+    const user = await User.findOne({ emailId });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid Credentials" });
     }
 
-    // step-3 ==> Compare the password
-    const isPasswordValid = await bcrypt.compare(password,user.password);
-    if(!isPasswordValid){
-      return res.status(400).json({message:"Invalid Credentials"});
+    // step-3 ==> Compare the password and use jwt token here for the user session
+    const isPasswordValid = await user.validatePassword(password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: "Invalid Credentials" });
     }
 
-    //step-4 ==> return success response
-    return res.status(200).json({message:"User logged in successfully"});
-    
+    // step-4 ==> if password is valid create a jwt token
+    const token = await user.getJWT();
+
+    // step-5 ==> if jwt created store it in cookies and send response to the user
+    res.cookie(
+      "token",
+      token,
+      { httpOnly: true },
+      { expires: new Date(Date.now() + 8 * 3600000) }
+    );
+
+    //step-6 ==> return success response
+    return res.status(200).json({ message: "User logged in successfully" });
   } catch (error) {
     console.error("Error during user login", error);
     return res.status(500).json({ message: "There is Problem in login" });
-    
-  }
-})
-
-// Feed up Route - GET/feed - get all usrs from the database
-app.get("/feed", async (req, res) => {
-  try {
-    const users = await User.find({});
-    return res.status(200).json(users);
-  } catch (error) {
-    console.error("Error fetching users", error);
-    return res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
-// Delete user by id - DELETE /user
-app.delete("/user",async(req,res) => {
+//Profile Route - GET
+app.get("/profile", userAuth, async (req, res) => {
   try {
-    const userId=req.body.userId;
-    await User.findByIdAndDelete(userId);
-    return res.status(200).json({message:"User deleted successfully"});
-    
-  } catch ( error) {
-    console.log("Error message",error);
-    return res.status(500).json({message:"Internal Server Error"});
-    
-  }
-})
-
-// Update DATA OF USER PATCH/user
-app.patch("/user/:userId",async(req,res) => {
-  try {
-    const userId =req.params.userId;
-    const data =req.body;
-
-    // Validation for allowed updates
-    const UPDATES_ALLOWED = ["firstName","lastName","photUrl","about","skills"];
-    const isAlloedToUpdate = Object.keys(keys).every((key) => UPDATES_ALLOWED.includes(key));
-    if(!isAlloedToUpdate){
-      return res.status(400).json({message:"Invalid updates!"});
-    }
-
-    await User.findByIdAndUpdate(userId,data,runValidators=true);
-    return res.status(200).json({message:"User data updated successfully"});
-    
+    // step-5 ==> fetch the user profile from the database
+    const user = req.user;
+    res.send("Profile Route is working" + user);
   } catch (error) {
-    console.log("Error message",error);
-    return res.status(500).json({message:"Internal Server Error"});
-    
+    console.error("Error fetching profile", error);
+    return res.status(500).json({ message: "Erroe in getting profile" });
   }
-})
+});
 
+// SendingConnectionRequest Route - POST
+app.post("/sendConnectionRequest", userAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    res.send(user.firstName + " Sent Connection Request");
+  } catch (error) {
+    console.error("Error in sending connection request", error);
+    return res
+      .status(500)
+      .json({ message: "Error in sending connection request" });
+  }
+});
 connectDB()
   .then(() => {
     console.log("Database connected successfully");
